@@ -252,32 +252,4 @@ def google_claim_search(api_key = None, q = None, lang_code = None, reviewer_dom
                 ## just the data retrieved from the api
                 out.append(flat_google)
         return out
-               
-### Run    
-if __name__ == "__main__":
-    ### define the relevant query parameters
-    Q = 'coronavirus'
-    # API_KEY = 'XXXXX' ## Your api key goes here
-    LANG_CODE = None
-    PAGESIZE = 100
-    MAXDAYS = 5
-    ### make the query
-    out = google_claim_search(api_key = API_KEY, q = Q, lang_code = LANG_CODE, pagination_size = PAGESIZE, max_days_age = MAXDAYS)
-    print(out)
-    for claim in out:
-        try:
-            claimant = claim['claimant']
-            the_claim = claim['text']
-            fc = claim['claimReview.url']
-            try:
-                fn = claim['itemReviewed.url']
-            except:
-                if 'itemReviewed.author.sameAs' in claim.keys() and 'http' in claim['itemReviewed.author.sameAs']:
-                    fn = claim['itemReviewed.author.sameAs']
-                else:
-                    fn = 'No source found'
-            print(f'{claimant}: "{the_claim}";\nfc source: {fc};\nFN source: {fn}.\n\n')
-        except:
-            pass
-    
     
