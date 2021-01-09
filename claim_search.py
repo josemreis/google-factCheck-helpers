@@ -164,7 +164,7 @@ def get_claimReview_meta(page = None, html_session = None):
     return relevant_meta
 
 ### google api claim search wrapper
-def google_claim_search(api_key = None, q = None, lang_code = None, reviewer_domain_filter = None, max_days_age = None, pagination_size = 100, pagination_token = None, pagination_offset = None, verbose = True):
+def google_claim_search(api_key = None, q = None, lang_code = None, reviewer_domain_filter = None, max_days_age = None, pagination_size = 100, pagination_token = None, pagination_offset = None, verbose = True, output_format = "json"):
     """
     Wrapper to the claim search endpoint of googles FC tools API
     
@@ -177,7 +177,7 @@ def google_claim_search(api_key = None, q = None, lang_code = None, reviewer_dom
         pagination_size : int, the pagination size. We will return up to that many results. Defaults to 10 if not set. 
         pagination_token: str, the pagination token. 
         pagination_offset: int, an integer that specifies the current offset (that is, starting result location) in search results. This field is only considered if pageToken is unset. For example, 0 means to return results starting from the first matching result, and 10 means to return from the 11th result. 
-    
+        output_format: str, "pandas" or "json"
     see also:
         * endpoint docs: https://developers.google.com/fact-check/tools/api/reference/rest/v1alpha1/claims/search
         * Getting a google api key: https://support.google.com/googleapi/answer/6158862?hl=en
@@ -201,6 +201,8 @@ def google_claim_search(api_key = None, q = None, lang_code = None, reviewer_dom
         raise ValueError('You must provide a google api key.')
     elif not isinstance(querystring['query'], str) and not isinstance(querystring['reviewer_domain_filter'], str):
         raise ValueError('You must provide a query string or select a reviewer domain.')
+    elif output_format not in ['json', 'pandas']:
+        raise ValueError('Output format must be either "json" or "pandas" df.')
     else:
         ## remove undefined params from the dict
         clean_qs = {k: v for k, v in querystring.items() if v is not None}
@@ -235,7 +237,7 @@ def google_claim_search(api_key = None, q = None, lang_code = None, reviewer_dom
             except:
                 nxt = None
         ### Add missing claimReview metadata
-        out = []
+        comp = []
         ## start html session    
         session = requests_html.HTMLSession()
         for claim in response_list[0]['claims']:
@@ -251,9 +253,17 @@ def google_claim_search(api_key = None, q = None, lang_code = None, reviewer_dom
                     print(f'Error retrieving the claimReview json from page({fc_page}): {e}')
                     cr = [{}]
                 ## combine both dictionaries
-                out.append({**flat_google, **cr[0]})
+                comp.append({**flat_google, **cr[0]})
             except:
                 ## just the data retrieved from the api
-                out.append(flat_google)
+                comp.append(flat_google)
+        ## transform output into the selected format
+        if output_format == "json":
+            out = json.dumps(comp)
+        else:
+            out = []
+            for d in comp:
+                out.append(flatten(d, filter_regex = None))
+            out = pd.DataFrame(out)
         return out
     

@@ -16,8 +16,9 @@ API_KEY = open(PATH2KEY, 'r').readline()
 LANG_CODE = None
 PAGESIZE = 100
 MAXDAYS = 1
+OUT = "pandas"
 ### make the query
-out = google_claim_search(api_key = API_KEY, q = Q, lang_code = LANG_CODE, pagination_size = PAGESIZE, max_days_age = MAXDAYS)
+out = google_claim_search(api_key = API_KEY, q = Q, lang_code = LANG_CODE, pagination_size = PAGESIZE, max_days_age = MAXDAYS, output_format = OUT)
 print(out)
 for claim in out:
     try:
