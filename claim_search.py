@@ -5,7 +5,6 @@ Created on Tue Dec 29 12:33:46 2020
 
 @author: jmr
 """
-import requests
 from requests.exceptions import HTTPError
 import time
 import requests_html
@@ -23,17 +22,22 @@ def get_request_backoff(url = None, query_string = None, max_retries = 50, back_
         max_retries: int, how many times should we try the GET request
         back_off: float, exponential back off parameter
     """
+    ## if there is not html session object, instantiate one
+    if session is None:
+        session = requests_html.HTMLSession()
+    ## arg dictionary for the GET request
+    kwargs = dict(url = url, params = query_string)
     ## GET request with exponential back-off
     attempts = 0
     while attempts < max_retries:
         attempts += 1
         sleep_time = round(attempts ** back_off, 1)
         try:
-            if session != None:
-                response = session.get(url)
+            response = session.get(**{k: v for k, v in kwargs.items() if v is not None})
+            if response.status_code == 404:
+                return response
             else:
-                response = requests.request("GET", url, params=query_string)
-            response.raise_for_status()
+                response.raise_for_status()
         except HTTPError as http_err:
             time.sleep(sleep_time)
             print(f'HTTP error occurred: {http_err}.\n - Retrying in {sleep_time} secs.')  
@@ -118,7 +122,7 @@ def get_claimReview_meta(page = None, html_session = None):
         }'
     """
     ### make the request and parse the page
-    if html_session == None:
+    if html_session is None:
         html_session = requests_html.HTMLSession()
     r = get_request_backoff(page, session = html_session)
     if not r.ok:
@@ -129,7 +133,7 @@ def get_claimReview_meta(page = None, html_session = None):
         except:
             raise ValueError (f'The requested page ({page}) cannot be reached and there is no archive of it.')
         ## re-try
-        r = session.get(old_archive)
+        r = get_request_backoff(old_archive, session = html_session, max_retries = 5)
         if not r.ok:    
             raise ValueError (f'The requested page ({page}) cannot be reached and there is no archive of it.')    
     ### identify and parse the js script containing the claimReview schema
@@ -217,7 +221,7 @@ def google_claim_search(api_key = None, q = None, lang_code = None, reviewer_dom
             ## prep the new query string
             clean_qs['pageToken'] = nxt
             ## new request
-            response2 = get_request_backoff(url = endpoint, query_string = clean_qs, max_retries = 3, back_off = 1.5)
+            response2 = get_request_backoff(url = endpoint, query_string = clean_qs, max_retries = 30, back_off = 1.5)
             ## parse
             parsed_response2 = json.loads(response2.text)
             if verbose:
