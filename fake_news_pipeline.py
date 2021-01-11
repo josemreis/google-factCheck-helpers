@@ -98,34 +98,47 @@ class google_fct_pipeline:
             ## parse response and append the output
             parsed_response = json.loads(response.text)
             if len(parsed_response) > 0:
-                ## normalize the dict and turn to pandas df
-                resp_cont = []
+                ## normalize the dict
+                flat_list = []
                 for l in parsed_response['claims']:
-                    resp_cont.append(pd.json_normalize({(k) : (v[0] if isinstance(v, list) else v) for k,v in l.items()}, sep = "."))
-                resp_df = pd.concat(resp_cont)
-                response_list.append(resp_df)
+                    flat = self.flatten_json({(k) : (v[0] if isinstance(v, list) else v) for k,v in l.items()})
+                    flat_list.append(flat)
+                ## assign to the respons level list
+                response_list.append(flat_list)
                 if verbose:
-                    print(parsed_response['claims'][0])
+                    print(parsed_response['claims'])
             if 'nextPageToken' not in parsed_response.keys():
                 nxt = False
             else:
                 ## assign the token for the next page to the query string
                 querystring['pageToken'] = parsed_response['nextPageToken']
-            ## put all into one df
+            ## clean up
+            out = []
             if len(response_list) > 0:
-                out = pd.concat(response_list)
-                ## add query parameters
-                out['query_keyword'] = q
-                out['query_days_range'] = self.max_days_age
-                out['query_reviewer_domain'] = reviewer_domain_filter
-                out['query_lang_code'] = lang_code
+                ## add some more keys and change the name of the text key
+                # api call level list
+                for l in response_list:
+                    # dictionary list
+                    for d in l:
+                        new_d = {}
+                        for k, v in d.items():
+                            if k == 'text':
+                                new_d['claim'] = v
+                            else:
+                                new_d[k] = v
+                                ## add query parameters
+                                new_d['query_keyword'] = q
+                                new_d['query_days_range'] = self.max_days_age
+                                new_d['query_reviewer_domain'] = reviewer_domain_filter
+                                new_d['query_lang_code'] = lang_code
+                        out.append(new_d)
             else:
                 out = None
                 print(f'No data retrieved for the query:\n{querystring}')
         return out
     
     ### run the query
-    def run_query(self):
+    def run_query(self, verbose = False, output_format = 'json'):
         """ Run multiple claim search calls."""
         ### Generate batch queries
         ## if one of the dynamic parameters is not list, turn it to list
@@ -135,12 +148,38 @@ class google_fct_pipeline:
         ## find unique combinations of the parameters
         combinations = list(product(q,lang_code,reviewer_domain_filter))
         ### Make the queries
-        df_list = []
+        out = []
         for pars in combinations:
-            resp = self.claim_search(q = pars[0], lang_code = pars[1], reviewer_domain_filter = pars[2])
+            resp = self.claim_search(q = pars[0], lang_code = pars[1], reviewer_domain_filter = pars[2], verbose = verbose)
             if resp is not None:
-                df_list.append(resp)
-        return pd.concat(df_list)
+                out.append(resp)
+        ### output format
+        if output_format not in ['pandas', 'json']:
+            raise ValueError('Output format must be either "json" or "pandas" for a pandas df.')
+        else:
+            if output_format == 'json':
+                out = json.dumps(out[0])
+            else:
+                out = pd.DataFrame(out[0])
+        return out
+    
+    ### flatten a nested dictionary
+    def flatten_json(self, y, sep = "."):
+        """ flatten a nested dictionary, source: https://towardsdatascience.com/flattening-json-objects-in-python-f5343c794b10"""
+        out = {}
+        def flatten(x, name='', sep = sep):
+            if type(x) is dict:
+                for a in x:
+                    flatten(x[a], name + a + sep)
+            elif type(x) is list:
+                i = 0
+                for a in x:
+                    flatten(a, name + str(i) + sep)
+                    i += 1
+            else:
+                out[name[:-1]] = x
+        flatten(y)
+        return out
     
     class fetch_metadata:
         
@@ -200,7 +239,7 @@ class google_fct_pipeline:
             self.all_data  = []
             self.fn_data = None
             ### run the async scraper
-            asyncio.run(self.claim_review_async())
+            return asyncio.run(self.claim_review_async())
     
         ### Retrieving the missing claimReview data from the FC websites
         ## asynchronous get requests for fetching the claimReviews from the websites
@@ -214,9 +253,9 @@ class google_fct_pipeline:
                 claimReview json
             
             """
-            r = await s.get(url)
+            response = await s.get(url)
             try:
-                claim_review_script = r.html.xpath("//script[contains(., 'claimReviewed')]/text()")
+                claim_review_script = response.html.xpath('//script[@type="application/ld+json"]/text()')
                 if len(claim_review_script) < 1:
                     raise ValueError(f'Error retrieving the claimReview json from page({url}).')
                 ## parse the metadata into json and remove ws
@@ -241,17 +280,10 @@ class google_fct_pipeline:
             out = []
             for d, url in zip(raw, self.urls):
                 if d is not None:
-                    ## flatten
-                    if isinstance(d, list):
-                        d = d[0]
-                    if '@graph' in d.keys():
-                        d = d['@graph'][0]
-                    ## normalize
-                    normalized = pd.json_normalize({(k) : (v[0] if isinstance(v, list) else v) for k,v in d.items()}, sep = ".")
-                    filtered = normalized.filter(regex = "itemReviewed|reviewRating", axis = 1)
-                    as_dict = filtered.to_dict(orient = 'records')[0]
-                    as_dict['claimReview.url'] = url
-                    out.append(as_dict)
+                    ## normalize. claimReview data is an attribute of the '@graph' list
+                    flat_list = [super().flatten_json(x) for x in d['@graph']]
+                    rel_dict = [d2 for d2 in flat_list if 'claimReviewed' in d2.keys()]
+                    out.append(rel_dict[0])
             df = pd.DataFrame(out)
             self.fn_data = df
             return df   
