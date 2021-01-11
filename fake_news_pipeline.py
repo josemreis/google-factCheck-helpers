@@ -142,121 +142,121 @@ class google_fct_pipeline:
                 df_list.append(resp)
         return pd.concat(df_list)
     
-class fn_data_pipeline:
-    
-    """
-    Scraper of the claimReview json script in fact check urls since Google fact check 
-    explorer claim search endpoint does not return the complete claimReview json.
-    
-    Example of full claimReview json schema:
-                    '
-                        {
-                    "@context": "https://schema.org",
-                    "@graph": [
-                        {
-                            "itemReviewed": {
-                                "@type": "CreativeWork",
-                                "url": "https://blog.naver.com/akwptmxl/222190223317",
-                                "datePublished": "2020-12-30",
-                                "author": {
-                                    "@type": "Organization",
-                                    "name": "multiple sources"
-                                }
-                            },
-                            "author": {
-                                "@type": "Organization",
-                                "@id": "https://factcheck.afp.com/",
-                                "name": "Fact Check",
-                                "url": "https://factcheck.afp.com/",
-                                "sameAs": "https://twitter.com/AFPFactCheck",
-                                "logo": {
-                                    "@type": "ImageObject",
-                                    "url": "https://factuel.afp.com/sites/all/themes/custom/afpblog/v2/assets/img/Logo_AFP.svg",
-                                    "width": "",
-                                    "height": ""
-                                }
-                            },
-                            "reviewRating": {
-                                "@type": "Rating",
-                                "ratingValue": "1",
-                                "bestRating": "5",
-                                "worstRating": "1",
-                                "alternateName": "FALSE"
-                            },
-                            "claimReviewed": "Whipped cream was banned in South Korean cafes in January 2021",
-                            "@type": "ClaimReview",
-                            "name": "Korean social media posts falsely claim that whipped cream was banned in South Korean cafes in January 2021",
-                            "datePublished": "2021-01-05 05:00",
-                            "url": "https://factcheck.afp.com/korean-social-media-posts-falsely-claim-whipped-cream-was-banned-south-korean-cafes-january-2021"
-                        }
-                    ]
-                }'
-    """
-    
-    ### Fetch claim review data straight from the source urls
-    def __init__(self, urls):
-        self.urls = urls
-        # Global Place To Store The Data:
-        self.all_data  = []
-        self.fn_data = None
-        ### run the async scraper
-        asyncio.run(self.claim_review_async())
-
-    ### Retrieving the missing claimReview data from the FC websites
-    ## asynchronous get requests for fetching the claimReviews from the websites
-    async def async_cr_task(self, s, url):
-        """
-        Visits a fact check, looks for a script containing claimReview metadata (https://schema.org/ClaimReview). 
-        If present, it parses it and returns a list with the retrieved metadata as dict. Else, it throws an error.
-        args:
-            page: str, Fact check page
-        returns:
-            claimReview json
+    class fetch_metadata:
         
         """
-        r = await s.get(url)
-        try:
-            claim_review_script = r.html.xpath("//script[contains(., 'claimReviewed')]/text()")
-            if len(claim_review_script) < 1:
-                raise ValueError(f'Error retrieving the claimReview json from page({url}).')
-            ## parse the metadata into json and remove ws
-            claim_review_data = json.loads(claim_review_script[0].replace("\n", ""))    
-            print(claim_review_data)
-            return claim_review_data
-        except Exception as e:
-            print(f'Error at {url}: {str(e)}')
+        Scraper of the claimReview json script in fact check urls since Google fact check 
+        explorer claim search endpoint does not return the complete claimReview json.
+        
+        Example of full claimReview json schema:
+                        '
+                            {
+                        "@context": "https://schema.org",
+                        "@graph": [
+                            {
+                                "itemReviewed": {
+                                    "@type": "CreativeWork",
+                                    "url": "https://blog.naver.com/akwptmxl/222190223317",
+                                    "datePublished": "2020-12-30",
+                                    "author": {
+                                        "@type": "Organization",
+                                        "name": "multiple sources"
+                                    }
+                                },
+                                "author": {
+                                    "@type": "Organization",
+                                    "@id": "https://factcheck.afp.com/",
+                                    "name": "Fact Check",
+                                    "url": "https://factcheck.afp.com/",
+                                    "sameAs": "https://twitter.com/AFPFactCheck",
+                                    "logo": {
+                                        "@type": "ImageObject",
+                                        "url": "https://factuel.afp.com/sites/all/themes/custom/afpblog/v2/assets/img/Logo_AFP.svg",
+                                        "width": "",
+                                        "height": ""
+                                    }
+                                },
+                                "reviewRating": {
+                                    "@type": "Rating",
+                                    "ratingValue": "1",
+                                    "bestRating": "5",
+                                    "worstRating": "1",
+                                    "alternateName": "FALSE"
+                                },
+                                "claimReviewed": "Whipped cream was banned in South Korean cafes in January 2021",
+                                "@type": "ClaimReview",
+                                "name": "Korean social media posts falsely claim that whipped cream was banned in South Korean cafes in January 2021",
+                                "datePublished": "2021-01-05 05:00",
+                                "url": "https://factcheck.afp.com/korean-social-media-posts-falsely-claim-whipped-cream-was-banned-south-korean-cafes-january-2021"
+                            }
+                        ]
+                    }'
+        """
+        
+        ### Fetch claim review data straight from the source urls
+        def __init__(self, urls):
+            self.urls = urls
+            # Global Place To Store The Data:
+            self.all_data  = []
+            self.fn_data = None
+            ### run the async scraper
+            asyncio.run(self.claim_review_async())
     
-    async def claim_review_async(self):
-        ## start an asyncronous session
-        s = AsyncHTMLSession()
-        ## define the tasks
-        tasks = []
-        for url in self.urls:
-            tasks.append(self.async_cr_task(s = s, url = url))
-        ## start the loop
-        raw = await asyncio.gather(*tasks)
-        # assing
-        self.all_data.extend(raw)
-        ## clean up
-        out = []
-        for d, url in zip(raw, self.urls):
-            if d is not None:
-                ## flatten
-                if isinstance(d, list):
-                    d = d[0]
-                if '@graph' in d.keys():
-                    d = d['@graph'][0]
-                ## normalize
-                normalized = pd.json_normalize({(k) : (v[0] if isinstance(v, list) else v) for k,v in d.items()}, sep = ".")
-                filtered = normalized.filter(regex = "itemReviewed|reviewRating", axis = 1)
-                as_dict = filtered.to_dict(orient = 'records')[0]
-                as_dict['claimReview.url'] = url
-                out.append(as_dict)
-        df = pd.DataFrame(out)
-        self.fn_data = df
-        return df   
+        ### Retrieving the missing claimReview data from the FC websites
+        ## asynchronous get requests for fetching the claimReviews from the websites
+        async def async_cr_task(self, s, url):
+            """
+            Visits a fact check, looks for a script containing claimReview metadata (https://schema.org/ClaimReview). 
+            If present, it parses it and returns a list with the retrieved metadata as dict. Else, it throws an error.
+            args:
+                page: str, Fact check page
+            returns:
+                claimReview json
             
-  
+            """
+            r = await s.get(url)
+            try:
+                claim_review_script = r.html.xpath("//script[contains(., 'claimReviewed')]/text()")
+                if len(claim_review_script) < 1:
+                    raise ValueError(f'Error retrieving the claimReview json from page({url}).')
+                ## parse the metadata into json and remove ws
+                claim_review_data = json.loads(claim_review_script[0].replace("\n", ""))    
+                print(claim_review_data)
+                return claim_review_data
+            except Exception as e:
+                print(f'Error at {url}: {str(e)}')
+        
+        async def claim_review_async(self):
+            ## start an asyncronous session
+            s = AsyncHTMLSession()
+            ## define the tasks
+            tasks = []
+            for url in self.urls:
+                tasks.append(self.async_cr_task(s = s, url = url))
+            ## start the loop
+            raw = await asyncio.gather(*tasks)
+            # assing
+            self.all_data.extend(raw)
+            ## clean up
+            out = []
+            for d, url in zip(raw, self.urls):
+                if d is not None:
+                    ## flatten
+                    if isinstance(d, list):
+                        d = d[0]
+                    if '@graph' in d.keys():
+                        d = d['@graph'][0]
+                    ## normalize
+                    normalized = pd.json_normalize({(k) : (v[0] if isinstance(v, list) else v) for k,v in d.items()}, sep = ".")
+                    filtered = normalized.filter(regex = "itemReviewed|reviewRating", axis = 1)
+                    as_dict = filtered.to_dict(orient = 'records')[0]
+                    as_dict['claimReview.url'] = url
+                    out.append(as_dict)
+            df = pd.DataFrame(out)
+            self.fn_data = df
+            return df   
+                
+      
+        
     
-
-
+    

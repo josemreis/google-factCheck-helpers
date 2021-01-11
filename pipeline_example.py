@@ -18,24 +18,24 @@ REV_DOMAIN = [
         'piaui.folha.uol.com.br', 
         'factcheck.afp.com', 
         'truthorfiction.com', 
-        'factual.afp.com/afp-espana', 
+        'factual.afp.com', 
         'correctiv.org'
         ]
 Q = None
 API_KEY = open(PATH2KEY, 'r').readline().strip()
 LANG_CODE = None
 PAGESIZE = 10
-MAXDAYS = 10
+MAXDAYS = 5
 
 ### Pull the data
 ## instantiate class google
-google_pipeline = google_fct_pipeline(api_key = API_KEY, q = Q, reviewer_domain_filter = REV_DOMAIN, lang_code = LANG_CODE, pagination_size = PAGESIZE, max_days_age = MAXDAYS)
+google_fn = google_fct_pipeline(api_key = API_KEY, q = Q, reviewer_domain_filter = REV_DOMAIN, lang_code = LANG_CODE, pagination_size = PAGESIZE, max_days_age = MAXDAYS)
 ## get google fct data
-google_fct_data = google_pipeline.run_query()
+google_fct_data = google_fn.run_query()
 print(google_fct_data.info())
 ## Get the fake news metadata
-fn_pipeline = fn_data_pipeline(urls = google_fct_data['claimReview.url'].tolist())
-fn_data = fn_pipeline.fn_data
+fn_meta = google_fn.fetch_metadata(urls = google_fct_data['claimReview.url'].tolist())
+fn_data = fn_meta.fn_data
 print(fn_data.info())
 
 ### Merge and export
