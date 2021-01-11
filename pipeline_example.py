@@ -34,7 +34,6 @@ google_fn = google_fct_pipeline(api_key = API_KEY, q = Q, reviewer_domain_filter
 ## get google fct data
 google_fct_data = google_fn.run_query(output_format = 'pandas')
 print(google_fct_data)
-google_fct_data
 ## Get the fake news metadata
 fn_meta = google_fn.fetch_metadata(urls = google_fct_data['claimReview.url'].tolist())
 fn_data = fn_meta.fn_data
