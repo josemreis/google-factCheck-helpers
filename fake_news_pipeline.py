@@ -186,7 +186,7 @@ class google_fct_pipeline:
             df = pd.concat(df_list).drop_duplicates(subset = 'claimReview.url').reset_index(drop=True)
             if output_format == 'json':
                 # back to json
-                out = df.to_json()
+                out = df.to_json(indent = 4)
             else:
                 # as is
                 out = df
@@ -325,12 +325,14 @@ class google_fct_pipeline:
                     if '@graph' in d.keys():
                         d = d['@graph']
                         flat_list = [google_fct_pipeline.flatten_json(self, x) for x in d]    
-                        rel_dict = [d2 for d2 in flat_list if 'claimReviewed' in d2.keys() or 'claimReviewed' in d2.keys()]
+                        rel_dict = [d2 for d2 in flat_list if 'claimReviewed' in d2.keys()]
                     else:
                         ## only the features of @graph are included in the dict. Goes as is
                         flat_list = [google_fct_pipeline.flatten_json(self, d)]
                         rel_dict = [d2 for d2 in flat_list if 'claimReviewed' in d2.keys() or 'claimReviewed' in d2.keys()]
                     if len(rel_dict) > 0:
+                        ## add key variable 
+                        rel_dict[0]["claimReview.url"] = rel_dict[0].pop("url")
                         print(rel_dict[0])
                         out.append(rel_dict[0])
             ## transform the output
