@@ -13,9 +13,11 @@ import json
 import pandas as pd
 import asyncio
 from itertools import product
+import logging
+from pathlib import Path
 
 class google_fct_pipeline:
-    def __init__(self, api_key = None, q = None, lang_code = None, reviewer_domain_filter = None, max_days_age = None, pagination_size = 100, pagination_token = None, pagination_offset = None):
+    def __init__(self, api_key = None, q = None, lang_code = None, reviewer_domain_filter = None, max_days_age = None, pagination_size = 100, pagination_token = None, pagination_offset = None, log_path = None):
         """
         Instantiate class google fct pipeline
         args:
@@ -43,6 +45,9 @@ class google_fct_pipeline:
         self.pagination_size = pagination_size
         self.pagination_token = pagination_token 
         self.pagination_offset = pagination_offset
+        self.logfilename = log_path
+        ## set up the logger
+        logging.basicConfig(filename= self.logfilename, format='%(levelname)s:%(asctime)s:%(message)s', encoding='utf-8', level=logging.DEBUG)
         
     ### Make a get request to Google's claim search endpoint
     def claim_search(self, q = None, lang_code = None, reviewer_domain_filter = None, verbose = True, max_retries = 30, back_off = 1.5):
@@ -89,6 +94,8 @@ class google_fct_pipeline:
                 try:
                     if verbose:
                         print(f'Making query to claim search endpoint\nq:{q}\nmax_days_age:{self.max_days_age}\nreviewer_domain_filter:{reviewer_domain_filter}\n')
+                    if self.logfilename is not None:
+                        logging.info(f'Making query to claim search endpoint\nq:{q}\nmax_days_age:{self.max_days_age}\nreviewer_domain_filter:{reviewer_domain_filter}\n')
                     response = requests.get(url = endpoint, params = {k: v for k, v in querystring.items() if v is not None})
                     response.raise_for_status()
                     if verbose:
@@ -96,8 +103,12 @@ class google_fct_pipeline:
                     break
                 except HTTPError as http_err:
                     time.sleep(sleep_time)
-                    print(f'HTTP error occurred: {http_err}.\n - Retrying in {sleep_time} secs.')  
+                    print(f'HTTP error in API call occurred: {http_err}.\n - Retrying in {sleep_time} secs.')  
+                    if self.logfilename is not None:
+                        logging.error(f'HTTP error in API call: {http_err}')
                 except Exception as err:
+                    if self.logfilename is not None:
+                        logging.error(f'Another non HTTP in API call error occurred: {err}')
                     raise ValueError(f'Another non HTTP Request error occurred: {err}.')
             ## parse response and append the output
             parsed_response = json.loads(response.text)
@@ -118,6 +129,8 @@ class google_fct_pipeline:
             out = response_list
         else:
             out = None
+            if self.logfilename is not None:
+                        logging.info(f'No data retrieved for the query:\nq:{q}\nmax_days_age:{self.max_days_age}\nreviewer_domain_filter:{reviewer_domain_filter}\n')
             print(f'No data retrieved for the query:\nq:{q}\nmax_days_age:{self.max_days_age}\nreviewer_domain_filter:{reviewer_domain_filter}\n')
         return out
     
@@ -186,7 +199,7 @@ class google_fct_pipeline:
             df = pd.concat(df_list).drop_duplicates(subset = 'claimReview.url').reset_index(drop=True)
             if output_format == 'json':
                 # back to json
-                out = df.to_json(indent = 4)
+                out = json.dumps(out, indent = 4, ensure_ascii=False).encode('utf8')
             else:
                 # as is
                 out = df
@@ -335,12 +348,16 @@ class google_fct_pipeline:
                         rel_dict[0]["claimReview.url"] = rel_dict[0].pop("url")
                         print(rel_dict[0])
                         out.append(rel_dict[0])
+                    else:
+                        if self.logfilename is not None:
+                            logging.warning(f'\n Could not parse the following claimReview json:\n{url}')
+                        print(f'\n Could not parse the following claimReview json:\n{url}')
             ## transform the output
             if self.output_format not in ['pandas', 'json']:
                 raise ValueError('Output format must be either "json" or "pandas" for a pandas df.')
             else:
                 if self.output_format == 'json':
-                    out = json.dumps(out)
+                    out = json.dumps(out, indent = 4, ensure_ascii=False).encode('utf8')
                 else:
                     out = pd.DataFrame(out)
             self.fn_data = out
