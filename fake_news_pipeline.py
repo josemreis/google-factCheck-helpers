@@ -57,7 +57,7 @@ class google_fct_pipeline:
             back_off: float, exponential back off parameter
             
         returns:
-            pandas data frame
+            list of dictionaries
         see also:
             * endpoint docs: https://developers.google.com/fact-check/tools/api/reference/rest/v1alpha1/claims/search
             * Getting a google api key: https://support.google.com/googleapi/answer/6158862?hl=en
@@ -87,8 +87,12 @@ class google_fct_pipeline:
                 attempts += 1
                 sleep_time = round(attempts ** back_off, 1)
                 try:
+                    if verbose:
+                        print(f'Making query:\nq:{q}\nmax_days_age:{self.max_days_age}\nreviewer_domain_filter:{reviewer_domain_filter}\n')
                     response = requests.get(url = endpoint, params = {k: v for k, v in querystring.items() if v is not None})
                     response.raise_for_status()
+                    if verbose:
+                        print(f'API Call to claim search endpoint. Status-code: {str(response.status_code)}\n')
                     break
                 except HTTPError as http_err:
                     time.sleep(sleep_time)
@@ -97,49 +101,57 @@ class google_fct_pipeline:
                     raise ValueError(f'Another non HTTP Request error occurred: {err}.')
             ## parse response and append the output
             parsed_response = json.loads(response.text)
-            if len(parsed_response) > 0:
-                ## normalize the dict
-                flat_list = []
-                for l in parsed_response['claims']:
-                    flat = self.flatten_json({(k) : (v[0] if isinstance(v, list) else v) for k,v in l.items()})
-                    flat_list.append(flat)
-                ## assign to the respons level list
-                response_list.append(flat_list)
-                if verbose:
-                    print(parsed_response['claims'])
+            if verbose:
+                print(parsed_response)
+            if len(parsed_response):
+                response_list.append(parsed_response['claims'])
+            ## more pages?
             if 'nextPageToken' not in parsed_response.keys():
                 nxt = False
             else:
                 ## assign the token for the next page to the query string
                 querystring['pageToken'] = parsed_response['nextPageToken']
-            ## clean up
-            out = []
-            if len(response_list) > 0:
-                ## add some more keys and change the name of the text key
-                # api call level list
-                for l in response_list:
-                    # dictionary list
-                    for d in l:
-                        new_d = {}
-                        for k, v in d.items():
-                            if k == 'text':
-                                new_d['claim'] = v
-                            else:
-                                new_d[k] = v
-                                ## add query parameters
-                                new_d['query_keyword'] = q
-                                new_d['query_days_range'] = self.max_days_age
-                                new_d['query_reviewer_domain'] = reviewer_domain_filter
-                                new_d['query_lang_code'] = lang_code
-                        out.append(new_d)
-            else:
-                out = None
-                print(f'No data retrieved for the query:\n{querystring}')
+                if verbose:
+                    print(f'\nFetching next page. Token: {parsed_response["nextPageToken"]}\n')
+        ## return
+        if len(response_list) > 0:
+            out = response_list
+        else:
+            out = None
+            print(f'No data retrieved for the query:\nq:{q}\nmax_days_age:{self.max_days_age}\nreviewer_domain_filter:{reviewer_domain_filter}\n')
         return out
     
+    ### parse claim search
+    def parse_claim_search(self, response_list = None, query_dict = None):
+        """flatten claim search dict and add query parameters as features"""
+        out = []
+        for claim in response_list:
+            ## normalize the dict
+            for l in claim:
+                flat = self.flatten_json({(k) : (v[0] if isinstance(v, list) else v) for k,v in l.items()})
+                ## change text var and assign query variables    
+                new_d = {}
+                for k, v in flat.items():
+                    if k == 'text':
+                        new_d['claim'] = v
+                    else:
+                        new_d[k] = v
+                ## add query features
+                new_d2 = {**query_dict, **new_d}
+                ## assign to the respons level list
+                out.append(new_d2)
+        return out
+        
     ### run the query
     def run_query(self, verbose = False, output_format = 'json'):
-        """ Run multiple claim search calls."""
+        """ 
+        Run multiple claim search calls.
+        args:
+            verbose: logical, print out the data as we collect it 
+            output_format: str, ["pandas", "json"]
+        returns:
+            pandas df or json object
+        """
         ### Generate batch queries
         ## if one of the dynamic parameters is not list, turn it to list
         q = (self.q if isinstance(self.q, list) else [self.q])
@@ -152,17 +164,34 @@ class google_fct_pipeline:
         for pars in combinations:
             resp = self.claim_search(q = pars[0], lang_code = pars[1], reviewer_domain_filter = pars[2], verbose = verbose)
             if resp is not None:
-                out.append(resp)
-        ### output format
+                ## make query dict with features to add
+                pars_to_add = {
+                        'query_keyword': pars[0], 
+                        'query_lang_code': pars[1], 
+                        'query_reviewer_domain': pars[2], 
+                        'query_max_day_range' : self.max_days_age
+                        }
+                ## parse the response
+                parsed = self.parse_claim_search(response_list = resp, query_dict = pars_to_add)
+                out.append(parsed)
+        ## transform to the selected output format
         if output_format not in ['pandas', 'json']:
             raise ValueError('Output format must be either "json" or "pandas" for a pandas df.')
         else:
+            # list to pandas
+            df_list = []
+            for l in out:
+                as_pandas = pd.concat([pd.DataFrame([d]) for d in l])
+                df_list.append(as_pandas)
+            df = pd.concat(df_list).drop_duplicates(subset = 'claimReview.url').set_index('claimReview.url')
             if output_format == 'json':
-                out = json.dumps(out[0])
+                # back to json
+                out = df.to_json()
             else:
-                out = pd.DataFrame(out[0])
+                # as is
+                out = df
         return out
-    
+ 
     ### flatten a nested dictionary
     def flatten_json(self, y, sep = "."):
         """ flatten a nested dictionary, source: https://towardsdatascience.com/flattening-json-objects-in-python-f5343c794b10"""
@@ -233,8 +262,17 @@ class google_fct_pipeline:
         """
         
         ### Fetch claim review data straight from the source urls
-        def __init__(self, urls):
+        def __init__(self, urls, output_format):
+            """ 
+            Instantiate class fetch_metadata. 
+            args:
+                urls: list, list of urls
+                output_format: str, ["pandas", "json"]
+            returns:
+                pandas df or json object
+            """
             self.urls = urls
+            self.output_format = output_format
             # Global Place To Store The Data:
             self.all_data  = []
             self.fn_data = None
@@ -266,27 +304,44 @@ class google_fct_pipeline:
                 print(f'Error at {url}: {str(e)}')
         
         async def claim_review_async(self):
+            """ Run the scrapers asynchronously and clean up the data"""
             ## start an asyncronous session
             s = AsyncHTMLSession()
             ## define the tasks
             tasks = []
             for url in self.urls:
                 tasks.append(self.async_cr_task(s = s, url = url))
-            ## start the loop
+            ## fetch the data async
             raw = await asyncio.gather(*tasks)
-            # assing
+            # assign the raw data
             self.all_data.extend(raw)
             ## clean up
             out = []
             for d, url in zip(raw, self.urls):
                 if d is not None:
                     ## normalize. claimReview data is an attribute of the '@graph' list
-                    flat_list = [super().flatten_json(x) for x in d['@graph']]
-                    rel_dict = [d2 for d2 in flat_list if 'claimReviewed' in d2.keys()]
-                    out.append(rel_dict[0])
-            df = pd.DataFrame(out)
-            self.fn_data = df
-            return df   
+                    if isinstance(d, list):
+                        d = d[0] 
+                    if '@graph' in d.keys():
+                        d = d['@graph']
+                        flat_list = [google_fct_pipeline.flatten_json(self, x) for x in d]    
+                        rel_dict = [d2 for d2 in flat_list if 'claimReviewed' in d2.keys() or 'claimReviewed' in d2.keys()]
+                    else:
+                        ## only the features of @graph are included in the dict. Goes as is
+                        flat_list = [google_fct_pipeline.flatten_json(self, d)]
+                        rel_dict = [d2 for d2 in flat_list if 'claimReviewed' in d2.keys() or 'claimReviewed' in d2.keys()]
+                    if len(rel_dict) > 0:
+                        print(rel_dict[0])
+                        out.append(rel_dict[0])
+            ## transform the output
+            if self.output_format not in ['pandas', 'json']:
+                raise ValueError('Output format must be either "json" or "pandas" for a pandas df.')
+            else:
+                if self.output_format == 'json':
+                    out = json.dumps(out)
+                else:
+                    out = pd.DataFrame(out)
+            self.fn_data = out
                 
       
         
