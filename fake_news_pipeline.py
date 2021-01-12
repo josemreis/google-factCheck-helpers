@@ -88,7 +88,7 @@ class google_fct_pipeline:
                 sleep_time = round(attempts ** back_off, 1)
                 try:
                     if verbose:
-                        print(f'Making query:\nq:{q}\nmax_days_age:{self.max_days_age}\nreviewer_domain_filter:{reviewer_domain_filter}\n')
+                        print(f'Making query to claim search endpoint\nq:{q}\nmax_days_age:{self.max_days_age}\nreviewer_domain_filter:{reviewer_domain_filter}\n')
                     response = requests.get(url = endpoint, params = {k: v for k, v in querystring.items() if v is not None})
                     response.raise_for_status()
                     if verbose:
@@ -103,7 +103,7 @@ class google_fct_pipeline:
             parsed_response = json.loads(response.text)
             if verbose:
                 print(parsed_response)
-            if len(parsed_response):
+            if len(parsed_response) > 0:
                 response_list.append(parsed_response['claims'])
             ## more pages?
             if 'nextPageToken' not in parsed_response.keys():
@@ -178,12 +178,12 @@ class google_fct_pipeline:
         if output_format not in ['pandas', 'json']:
             raise ValueError('Output format must be either "json" or "pandas" for a pandas df.')
         else:
-            # list to pandas
+            # nested list of dicts to pandas
             df_list = []
             for l in out:
-                as_pandas = pd.concat([pd.DataFrame([d]) for d in l])
+                as_pandas = pd.concat([pd.DataFrame([d]) for d in l], ignore_index = True)
                 df_list.append(as_pandas)
-            df = pd.concat(df_list).drop_duplicates(subset = 'claimReview.url').set_index('claimReview.url')
+            df = pd.concat(df_list).drop_duplicates(subset = 'claimReview.url').reset_index(drop=True)
             if output_format == 'json':
                 # back to json
                 out = df.to_json()
