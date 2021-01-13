@@ -12,7 +12,7 @@ import json
 
 ### make an api call
 query_path = '/home/jmr/Desktop/example_query.json'
-api = google_fct_wrapper(json_query_path = query_path)
+api = google_fct_wrapper(query = query_path)
 google_data = api.run_query()
 ### fetch claim review metadata asynchronously
 claim_review_data = async_claim_review_parser(claim_dict_list = google_data)

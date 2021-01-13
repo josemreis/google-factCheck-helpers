@@ -15,11 +15,11 @@ from datetime import datetime
 
 class google_fct_wrapper:
     
-    def __init__(self, json_query_path: str, **kwargs):
+    def __init__(self, query : str or dict, **kwargs):
         """
         Instantiate class google fct pipeline
         args:
-            json_query_path: json file containing the query parameters, namely: 
+            query : json file containing the query parameters or a dictionary containing the relevant parameters, namely: 
                 key: str, google API key.
                 query: str or list, textual query string or list of textual query strings, Required unless reviewPublisherSiteFilter is specified.
                 languageCode: str or list, BCP-47 language code, e.g. "en-US" or "sr-Latn". Can be used to restrict results by language, though we do not currently consider the region. 
@@ -35,11 +35,16 @@ class google_fct_wrapper:
             * Getting a google api key: https://support.google.com/googleapi/answer/6158862?hl=en
             * BCP-47 language code directory: https://github.com/libyal/libfwnt/wiki/Language-Code-identifiers 
         """
-        ## read the query
-        with open(json_query_path) as f:
-            query = json.load(f)
-        # query dict as attribute
-        self.query_dict = query
+        ## parse the query if json file
+        if isinstance(query, str) and 'json' in query:
+            with open(query) as f:
+                query = json.load(f)
+        ## assign
+        if isinstance(query, dict):
+            # query dict as attribute
+            self.query_dict = query
+        else:
+            raise ValueError('You must define the query. Either in a json file or as a dict.')
         ## attrs: query
         for k in query.keys():
             setattr(self, k, query[k])
