@@ -89,7 +89,7 @@ class claim_review_parser(object):
     def fetch_html(self, response = None):
         return response.text
     
-    def parse_claim_review(self, html: bytes, url: str):
+    def parse_claim_review(self, html: bytes, url: str) -> list:
         """Fetch JSON-LD structured data."""
         ## parse the json linked data metadata
         metadata = extruct.extract(

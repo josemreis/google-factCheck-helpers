@@ -178,7 +178,9 @@ class google_fct_wrapper:
                 ## clean up
                 cleaned = self.clean_up(response_list = resp)
                 if len(cleaned) > 0:
-                    out.append({"query_parameters" : {**pars_to_add}, "claim_search_results" : cleaned})
+                    ## for each response in the query add the query parameters and assign to list
+                    out.extend([{**pars_to_add, **c} for c in cleaned])
             else:
                 print(f'No data retrieved for the query:\n{pars_to_add}\n')
+        ###
         return out
