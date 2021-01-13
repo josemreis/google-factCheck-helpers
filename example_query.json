@@ -1,0 +1,15 @@
+{
+    "key": XXXXXXXXXXXXXXXXXX",
+    "query": "Antifa",
+    "languageCode": [
+        "pt",
+        "es",
+        "de",
+        "en"
+    ],
+    "reviewPublisherSiteFilter": null,
+    "maxAgeDays": 10,
+    "pageSize": 50,
+    "pageToken": null,
+    "offset": null
+}

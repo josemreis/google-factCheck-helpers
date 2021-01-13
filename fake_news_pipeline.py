@@ -14,7 +14,6 @@ import pandas as pd
 import asyncio
 from itertools import product
 import logging
-from pathlib import Path
 
 class google_fct_pipeline:
     def __init__(self, api_key = None, q = None, lang_code = None, reviewer_domain_filter = None, max_days_age = None, pagination_size = 100, pagination_token = None, pagination_offset = None, log_path = None):
@@ -47,8 +46,8 @@ class google_fct_pipeline:
         self.pagination_offset = pagination_offset
         self.logfilename = log_path
         ## set up the logger
-        logging.basicConfig(filename= self.logfilename, format='%(levelname)s:%(asctime)s:%(message)s', encoding='utf-8', level=logging.DEBUG)
-        
+        logging.basicConfig(filename= self.logfilename, format='%(levelname)s : %(asctime)s : %(message)s', level=logging.DEBUG)
+    
     ### Make a get request to Google's claim search endpoint
     def claim_search(self, q = None, lang_code = None, reviewer_domain_filter = None, verbose = True, max_retries = 30, back_off = 1.5):
         """ Wrapper to the claim search endpoint of googles FC tools API
@@ -60,7 +59,6 @@ class google_fct_pipeline:
             verbose: logical, defaults to True
             max_retries: int, how many times should we try the GET request
             back_off: float, exponential back off parameter
-            
         returns:
             list of dictionaries
         see also:
@@ -275,7 +273,7 @@ class google_fct_pipeline:
         """
         
         ### Fetch claim review data straight from the source urls
-        def __init__(self, urls, output_format):
+        def __init__(self, urls, output_format, log_path):
             """ 
             Instantiate class fetch_metadata. 
             args:
@@ -289,6 +287,7 @@ class google_fct_pipeline:
             # Global Place To Store The Data:
             self.all_data  = []
             self.fn_data = None
+            self.logfilename = log_path
             ### run the async scraper
             return asyncio.run(self.claim_review_async())
     
@@ -306,7 +305,7 @@ class google_fct_pipeline:
             """
             response = await s.get(url)
             try:
-                claim_review_script = response.html.xpath('//script[@type="application/ld+json"]/text()')
+                claim_review_script = response.html.xpath('//script[@type="application/ld+json" and contains(text(), "itemReviewed")]/text()')
                 if len(claim_review_script) < 1:
                     raise ValueError(f'Error retrieving the claimReview json from page({url}).')
                 ## parse the metadata into json and remove ws
@@ -314,6 +313,8 @@ class google_fct_pipeline:
                 print(claim_review_data)
                 return claim_review_data
             except Exception as e:
+                if self.logfilename is not None:
+                        logging.error(f'Error retrieving the claimReview json from page({url}).')
                 print(f'Error at {url}: {str(e)}')
         
         async def claim_review_async(self):
@@ -345,14 +346,14 @@ class google_fct_pipeline:
                         rel_dict = [d2 for d2 in flat_list if 'claimReviewed' in d2.keys() or 'claimReviewed' in d2.keys()]
                     if len(rel_dict) > 0:
                         ## add key variable 
-                        rel_dict[0]["claimReview.url"] = rel_dict[0].pop("url")
+                        rel_dict[0]["claimReviewed.url"] = rel_dict[0].pop("url")
                         print(rel_dict[0])
                         out.append(rel_dict[0])
                     else:
                         if self.logfilename is not None:
                             logging.warning(f'\n Could not parse the following claimReview json:\n{url}')
-                        print(f'\n Could not parse the following claimReview json:\n{url}')
-            ## transform the output
+                        print(f'Could not parse the following claimReview json:{url}')
+            ## transform to the selected output format
             if self.output_format not in ['pandas', 'json']:
                 raise ValueError('Output format must be either "json" or "pandas" for a pandas df.')
             else:
@@ -361,8 +362,7 @@ class google_fct_pipeline:
                 else:
                     out = pd.DataFrame(out)
             self.fn_data = out
-                
-      
-        
+
+
     
     
