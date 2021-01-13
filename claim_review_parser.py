@@ -78,7 +78,7 @@ class claim_review_parser(object):
                 raise ValueError(f'Another non HTTP Request error occurred: {err}.')
         return response
         
-    def check_claim_review(self, response: requests.models.Response):
+    def check_claim_review(self, response = None):
         """Given a HTTP response, check wether or not a page uses claim_review schema """
         ## parse the content
         content = html.fromstring(response.content)
@@ -86,7 +86,7 @@ class claim_review_parser(object):
         claim_review_script = content.xpath('//script[@type="application/ld+json" and contains(text(), "itemReviewed")]')
         return len(claim_review_script) > 0
     
-    def fetch_html(self, response):
+    def fetch_html(self, response = None):
         return response.text
     
     def parse_claim_review(self, html: bytes, url: str):
@@ -116,58 +116,55 @@ class claim_review_parser(object):
             out = [None]
         return out[0]
     
-    def get_candidate_value(self, d: dict, key: str, candidate_expressions = list):
-        """ Fetch the value given a key or one of a list of possible candidate keys or key[index] combos as expressions to be dynamically evaluated"""
-        if d.get(key) is None:
+    def get_candidate_value(self, d: dict, key: str, candidate_expressions = None):
+        """ 
+        Fetch the value given a key or one of a list of possible candidate keys or key[index] combos as expressions to be dynamically evaluated
+        args:
+            d: dict,
+            key: str, 
+            candidate_expressions: list of str, containing python code to be dynamically evaluated
+        """
+        try:
+            if d.get(key) is None:
+                out = None
+                if candidate_expressions is not None:
+                    for candidate in candidate_expressions:
+                        exp = f'd{candidate}'
+                        try:
+                            result = eval(exp)
+                            if result is not None and len(result) > 0:
+                                out = result
+                                break
+                        except:
+                            pass
+            else:
+                out = d.get(key)
+        except:
             out = None
-            for candidate in candidate_expressions:
-                exp = f'd{candidate}'
-                try:
-                    result = eval(exp)
-                    if result is not None and len(result) > 0:
-                        out = result
-                        break
-                except:
-                    pass
-        else:
-            out = d.get(key)
         return out
     
     def clean_claim_review(self, cr: dict):
         """ Extract the relevant metadata """
         ### fetch the main arrays
-        rr_dict = cr.get('reviewRating')
-        ir_dict = cr.get('itemReviewed')
-        author = cr.get('author')
+        rr_dict = self.get_candidate_value(cr, 'reviewRating')
+        ir_dict = self.get_candidate_value(cr, 'itemReviewed')
+        author = self.get_candidate_value(cr, 'author')
         return dict(
-                claim_reviewed = cr.get('claimReviewed'),
-                review_rating_type = rr_dict.get('@type'),
-                review_rating_value = rr_dict.get('ratingValue'),
-                review_rating_best = rr_dict.get('bestRating'),
-                review_rating_worst = rr_dict.get('worstRating'),
-                review_rating_alternate_name = rr_dict.get('alternateName'),
-                fact_check_url = cr.get('url'),
-                fact_check_date_published = cr.get('datePublished'),
-                fact_check_author_type = author.get('@type'),
-                fact_check_author_id = author.get('@id'),
-                fact_check_author_name = author.get('name'),
-                fact_check_author_url = author.get('url'),
+                claim_reviewed = self.get_candidate_value(cr, 'claimReviewed'),
+                review_rating_type = self.get_candidate_value(rr_dict, '@type'),
+                review_rating_value = self.get_candidate_value(rr_dict, 'ratingValue'),
+                review_rating_best = self.get_candidate_value(rr_dict, 'bestRating'),
+                review_rating_worst = self.get_candidate_value(rr_dict, 'worstRating'),
+                review_rating_alternate_name = self.get_candidate_value(rr_dict, 'alternateName'),
+                fact_check_url = self.get_candidate_value(cr, 'url'),
+                fact_check_date_published = self.get_candidate_value(cr, 'datePublished'),
+                fact_check_author_type = self.get_candidate_value(author, '@type'),
+                fact_check_author_id = self.get_candidate_value(author, '@id'),
+                fact_check_author_name = self.get_candidate_value(author, 'name'),
+                fact_check_author_url = self.get_candidate_value(author, 'url'),
                 fact_check_author_url_sameAs = self.get_candidate_value(author, 'sameAs', candidate_expressions = ['["sameAs"][0]']),
                 item_reviewed_url = self.get_candidate_value(ir_dict, 'url', candidate_expressions = ['["author"]["sameAs"]["url"]', '["author"]["sameAs"]', '["appearance"]', '["appearance"]["url"]']),
                 item_reviewed_date_published = self.get_candidate_value(ir_dict, 'datePublished', candidate_expressions = ['["author"]["datePublished"]', '["appearance"]["datePublished"]']),
                 item_reviewed_author_type = self.get_candidate_value(ir_dict, 'author.type', candidate_expressions = ['["author"]["@type"]', '["author"]["type"]']),
                 item_reviewed_author_name = self.get_candidate_value(ir_dict, 'author.name', candidate_expressions = ['["author"]["name"]'])
                 )
-
-if __name__ == "__main__":
-    url = "https://factuel.afp.com/des-tests-covid-deja-positifs-en-provenance-de-chine-il-sagit-decouvillons-de-controle"
-    parser = claim_review_parser()
-    response = parser.scrape(url = url, max_retries = 30, back_off = 2)
-    if parser.check_claim_review(response):
-        parsed_html = parser.fetch_html(response)
-        parsed_cr = parser.parse_claim_review(html = parsed_html, url = url)
-        print(parsed_cr)
-        if parsed_cr is not None:
-            print(parsed_cr)
-            cleaned = parser.clean_claim_review(cr = parsed_cr)
-            print(cleaned)
