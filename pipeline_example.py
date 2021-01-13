@@ -30,5 +30,5 @@ for google_dict, cr_dict in zip(google_data, claim_review.cr_list):
         cr_dict = {}
     to_export.append({"claim_search_data" : {**google_dict}, "claim_review_metadata" : {**cr_dict}})
 ### export
-with open('/home/jmr/Desktop/fakeNews_test_data.json') as f:
+with open('/home/jmr/Desktop/fakeNews_test_data.json', 'w') as f:
     json.dump(to_export, f, ensure_ascii=False, indent=4)
