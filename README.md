@@ -37,7 +37,7 @@ google_data = cs.run_query()
 ### fetch claim review metadata asynchronously
 claim_review_data = async_claim_review_parser(claim_dict_list = google_data)
 ### export
-with open(claim_review_data, 'w') as f:
+with open('fake_news.json', 'w') as f:
     json.dump(claim_review_data.data, f, ensure_ascii=False, indent=4)
 ```
 
