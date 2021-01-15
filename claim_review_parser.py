@@ -163,7 +163,7 @@ class claim_review_parser(object):
                 fact_check_author_name = self.get_candidate_value(author, 'name'),
                 fact_check_author_url = self.get_candidate_value(author, 'url'),
                 fact_check_author_url_sameAs = self.get_candidate_value(author, 'sameAs', candidate_expressions = ['["sameAs"][0]']),
-                item_reviewed_url = self.get_candidate_value(ir_dict, 'url', candidate_expressions = ['["author"]["sameAs"]["url"]', '["author"]["sameAs"]', '["appearance"]', '["appearance"]["url"]']),
+                item_reviewed_url = self.get_candidate_value(ir_dict, 'url', candidate_expressions = ['["author"]["sameAs"]["url"]', '["author"]["sameAs"]', '["appearance"]', '["appearance"]["url"]', "['url']"]),
                 item_reviewed_date_published = self.get_candidate_value(ir_dict, 'datePublished', candidate_expressions = ['["author"]["datePublished"]', '["appearance"]["datePublished"]']),
                 item_reviewed_author_type = self.get_candidate_value(ir_dict, 'author.type', candidate_expressions = ['["author"]["@type"]', '["author"]["type"]']),
                 item_reviewed_author_name = self.get_candidate_value(ir_dict, 'author.name', candidate_expressions = ['["author"]["name"]'])

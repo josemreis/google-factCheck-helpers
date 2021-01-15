@@ -1,4 +1,4 @@
-asyncio==3.4.3
+lxml==4.3.3
+requests_html==0.10.0
 requests==2.22.0
-requests-html==0.10.0
-pandas==1.1.5
+extruct==0.12.0
