@@ -41,13 +41,6 @@ with open(claim_review_data, 'w') as f:
     json.dump(claim_review_data.data, f, ensure_ascii=False, indent=4)
 ```
 
-Links
------
-
-- [Google's claimSearch endpoint docs](https://developers.google.com/fact-check/tools/api/reference/rest/v1alpha1/claims/search)
-- [More on ClaimReview](https://www.claimreviewproject.com/the-facts-about-claimreivew)
-- [ClaimReview schema](https://schema.org/ClaimReview)
-
 
 **Example output**
 
@@ -83,3 +76,11 @@ Links
  }
 
 ```
+
+
+Links
+-----
+
+- [Google's claimSearch endpoint docs](https://developers.google.com/fact-check/tools/api/reference/rest/v1alpha1/claims/search)
+- [More on ClaimReview](https://www.claimreviewproject.com/the-facts-about-claimreivew)
+- [ClaimReview schema](https://schema.org/ClaimReview)
