@@ -1,2 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+
+# Compiled python modules.
+*.pyc
+
+# Setuptools distribution folder.
+/dist/

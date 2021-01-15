@@ -13,7 +13,7 @@ import json
 from itertools import product
 from datetime import datetime
 
-class google_fct_wrapper:
+class claim_search:
     
     def __init__(self, query : str or dict, **kwargs):
         """

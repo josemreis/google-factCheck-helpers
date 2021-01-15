@@ -7,7 +7,7 @@ Created on Wed Jan 13 17:18:21 2021
 """
 import requests_html
 import asyncio
-from claim_review_parser import *
+from google_fc_helpers.claim_review_parser import *
 
 class async_claim_review_parser:
     

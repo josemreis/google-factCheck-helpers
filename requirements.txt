@@ -1,4 +1,0 @@
-lxml==4.3.3
-requests_html==0.10.0
-requests==2.22.0
-extruct==0.12.0
