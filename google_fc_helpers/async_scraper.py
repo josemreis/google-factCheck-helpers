@@ -70,6 +70,7 @@ class async_claim_review_parser:
                     print(parsed_cr)
                 except Exception as err:
                     print(f'Error occurred in the async claim review parser: {err}.')
+                    parsed_cr = None
                     pass
                 if parsed_cr is not None:
                     cleaned = parser.clean_claim_review(cr = parsed_cr)
