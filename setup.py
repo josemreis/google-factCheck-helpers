@@ -18,5 +18,5 @@ setup(
               "requests>=2.22.0",
               "extruct>=0.12.0"
              ],
-      python_requires='>=3',
+      python_requires='>=3.7',
 )
