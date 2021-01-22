@@ -62,25 +62,28 @@ class async_claim_review_parser:
         parser = claim_review_parser()
         out = []
         for task_list, url in zip(raw, self.claim_dict_list):
-            response = task_list[0]
-            self.response_list.append(response)
-            if parser.check_claim_review(response):
-                parsed_html = response.content
-                try:
-                    parsed_cr = parser.parse_claim_review(html = parsed_html, url = url)
-                    print(parsed_cr)
-                except Exception as err:
-                    print(f'Error occurred in the async claim review parser: {err}.')
-                    parsed_cr = None
-                    pass
-                if parsed_cr is not None:
-                    cleaned = parser.clean_claim_review(cr = parsed_cr)
-                    ## combine the dictionaries
-                    new_d = {**task_list[1], **cleaned}
-                    ## append
-                    out.append(new_d)
-                else:
-                    out.append(task_list[1])
+            try:
+                response = task_list[0]
+                self.response_list.append(response)
+                if parser.check_claim_review(response):
+                    parsed_html = response.content
+                    try:
+                        parsed_cr = parser.parse_claim_review(html = parsed_html, url = url)
+                        print(parsed_cr)
+                    except Exception as err:
+                        print(f'Error occurred in the async claim review parser: {err}.')
+                        parsed_cr = None
+                        pass
+                    if parsed_cr is not None:
+                        cleaned = parser.clean_claim_review(cr = parsed_cr)
+                        ## combine the dictionaries
+                        new_d = {**task_list[1], **cleaned}
+                        ## append
+                        out.append(new_d)
+                    else:
+                        out.append(task_list[1])
+            except:
+                pass
         ## assign to attrivute
         self.data = out
             
