@@ -42,7 +42,8 @@ class async_claim_review_parser:
             try:
                 response = await s.get(url)
                 return [response, claim_dict]
-            except:
+            except Exception as err:
+                print(f'When fetching the html of {url}. Got the following error: {err}')
                 pass
     
     async def claim_review_async(self):
