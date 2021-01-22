@@ -8,8 +8,9 @@ Installation
 
 You can install directly from the GitHub repository:
 
-    pip install git+https://github.com/josemreis/google-factCheck-helpers
-
+```shell
+pip3 install git+https://github.com/josemreis/google-factCheck-helpers
+```
 
 Example usage
 -------------
