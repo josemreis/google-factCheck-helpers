@@ -18,7 +18,7 @@ key = open(PATH_TO_KEY, 'r').readline().strip()
 query = {
         "key": key,
         "query": "covid",
-        "languageCode" : ['ar', 'bg', 'cs', 'en-GB', 'fil', 'fr', 'uk'],
+        "languageCode" : ['ar', 'bg', 'cs', 'en-GB', 'fil', 'fr', 'el', 'hi', 'id', 'uk'],
         "reviewPublisherSiteFilter": None,
         "pageSize": 10,
         "maxAgeDays": 3
