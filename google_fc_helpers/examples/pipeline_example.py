@@ -17,11 +17,11 @@ PATH_TO_KEY = os.path.join(str(Path.home()), 'gfce_key.txt')
 key = open(PATH_TO_KEY, 'r').readline().strip()
 query = {
         "key": key,
-        "query": ["covid", "Coronavirus"],
-        "languageCode" : ['pt', 'es', 'en', 'de'],
+        "query": "covid",
+        "languageCode" : ['ar', 'bg', 'cs', 'en-GB', 'fil', 'fr', 'uk'],
         "reviewPublisherSiteFilter": None,
         "pageSize": 10,
-        "maxAgeDays": 60
+        "maxAgeDays": 3
         }
 # query = '/home/jmr/Desktop/example_query.json' # alternatively, feed it the query in json format
 ## make the call
@@ -32,5 +32,5 @@ google_data = cs.run_query()
 claim_review_data = async_claim_review_parser(claim_dict_list = google_data)
 ### export
 ### export
-with open(Path(__file__).parent / "example_query.jsonfakeNews_test_data.json", 'w') as f:
+with open(Path(__file__).parent / "output_example.json", 'w') as f:
     json.dump(claim_review_data.data, f, ensure_ascii=False, indent=4)

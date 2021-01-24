@@ -85,12 +85,13 @@ class claim_search:
                     # make the get request
                     response = requests.get(url = endpoint, params = {k: v for k, v in querystring.items() if v is not None})
                     response.raise_for_status()
-                    break
                 except HTTPError as http_err:
                     time.sleep(sleep_time)
                     print(f'HTTP error in API call occurred: {http_err}.\n - Retrying in {sleep_time} secs.')  
                 except Exception as err:
                     raise ValueError(f'Another non HTTP Request error occurred: {err}.')
+            # re-count http request attempts
+            attempts = 0
             ## parse response and append the output
             if response.ok:
                 parsed_response = json.loads(response.text)
@@ -108,7 +109,8 @@ class claim_search:
                     if verbose:
                         print(f'\nFetching next page. Token: {parsed_response["nextPageToken"]}\n')
             else:
-                raise ValueError(f'Could not conclude the call: {response.text}')
+                nxt = False
+                print(f'Could not conclude the call: {response.text}')
         ## return
         if len(response_list) > 0:
             out = response_list
