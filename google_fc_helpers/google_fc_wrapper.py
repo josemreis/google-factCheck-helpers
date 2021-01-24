@@ -92,20 +92,23 @@ class claim_search:
                 except Exception as err:
                     raise ValueError(f'Another non HTTP Request error occurred: {err}.')
             ## parse response and append the output
-            parsed_response = json.loads(response.text)
-            if verbose:
-                print(parsed_response['claims'])
-            if len(parsed_response) > 0:
-                # extend response list
-                response_list.extend(parsed_response['claims'])
-            ## more pages?
-            if 'nextPageToken' not in parsed_response.keys():
-                nxt = False
-            else:
-                ## assign the token for the next page to the query string
-                querystring['pageToken'] = parsed_response['nextPageToken']
+            if response.ok:
+                parsed_response = json.loads(response.text)
                 if verbose:
-                    print(f'\nFetching next page. Token: {parsed_response["nextPageToken"]}\n')
+                    print(parsed_response['claims'])
+                if len(parsed_response) > 0:
+                    # extend response list
+                    response_list.extend(parsed_response['claims'])
+                ## more pages?
+                if 'nextPageToken' not in parsed_response.keys():
+                    nxt = False
+                else:
+                    ## assign the token for the next page to the query string
+                    querystring['pageToken'] = parsed_response['nextPageToken']
+                    if verbose:
+                        print(f'\nFetching next page. Token: {parsed_response["nextPageToken"]}\n')
+            else:
+                raise ValueError(f'Could not conclude the call: {response.text}')
         ## return
         if len(response_list) > 0:
             out = response_list
